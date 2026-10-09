@@ -1,0 +1,81 @@
+---
+# =============================================================== #
+# PLAY 1: Configure the Control Node as a Local Repository Server #
+# =============================================================== #
+
+- name: Setup local repository mirror using Apache
+  hosts: localhost
+  connection: local
+  become: yes
+  tasks:
+    - name: Install Apache web server and Firewall
+      ansible.builtin.dnf:
+        name: 
+          - httpd
+          - firewalld
+        state: present
+
+    - name: Ensure Apache and Firewall is started and enabled on boot
+      ansible.builtin.systemd_service:
+        name: '{{ item }}'
+        state: started
+        enabled: true
+      loop:
+        - httpd
+        - firewalld
+
+    - name: Allow HTTP traffic throug the firewall
+      ansible.posix.firewalld:
+        service: http
+        permanent: true
+        immediate: true
+        state: enabled
+
+    - name: Create the mount directory for the ISO
+      ansible.builtin.file:
+        path: /var/www/html/repos
+        state: directory
+        mode: '0755'
+
+    - name: Mount RHEL CD/ISO into the Apache web directory
+      ansible.posix.mount:
+        path: /var/www/html/repos
+        src: /dev/cdrom
+        fstype: iso9660
+        opts: ro
+        state: mounted
+
+# ======================================================= #
+# PLAY 2: Configure all nodes to use the new Local Mirror #
+# ======================================================= #
+
+- name: Configure local dnf repositories
+  hosts: nodes 
+  become: yes
+  tasks:    
+    - name: Disable RedHat Subscription Manager plugin to prevent annoying warnings    
+      ansible.builtin.replace:
+        path: /etc/dnf/plugins/subscription-manager.conf
+        regexp: '^enabled=1'
+        replace: 'enabled=0'
+
+    - name: Remove the default redhat.repo file if it exists
+      ansible.builtin.file:
+        path: /etc/yum.repos.d/redhat.repo
+        state: absent
+
+    - name: Configure Base_OS repository
+      ansible.builtin.yum_repository:
+        name: local_baseos
+        description: RHEL 9 BaseOS Local Mirror
+        baseurl: http://192.168.56.10/repos/BaseOS
+        enabled: yes
+        gpgcheck: no
+
+    - name: Configure AppStream repository
+      ansible.builtin.yum_repository:
+        name: local_appstream
+        description: RHEL 9 AppStream Local
+        baseurl: http://192.168.56.10/repos/AppStream
+        enabled: yes
+        gpgcheck: no
