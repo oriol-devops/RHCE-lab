@@ -1,4 +1,4 @@
-# RHEL 9 Air-Gapped Lab: Vagrant & Ansible
+# RHCE Air-Gapped Lab: Vagrant & Ansible
 
 A professional-grade local infrastructure laboratory designed to simulate an air-gapped production environment. It automates the deployment of a Red Hat Enterprise Linux 9 cluster using Vagrant, injecting a local RHEL ISO to serve as a centralized HTTP package repository for worker nodes via Ansible.
 
